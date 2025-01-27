@@ -15,42 +15,52 @@ class BluetoothConnectorService {
 
   final jsConnector = js.context['BluetoothDeviceConnector'];
 
-  Future<Map<String, dynamic>> connectToDeviceByName(String deviceName) async {
-    try {
-      if (kIsWeb) {
-        // Fixed JavaScript interop call
-
-        if (js.context.callMethod('connectByName', [deviceName]) == null) {
-          print('jsConnector is null');
-          throw PlatformException(
-            code: 'JS_ERROR',
-            message: 'jsConnector not found in JavaScript context',
-          );
-        }
-
-        final result = await promiseToFuture(
-            js.context.callMethod('connectByName', [deviceName]));
-
-        // Extract name from JavaScript object
-        final name = js.JsObject.fromBrowserObject(result)['name'];
-
-        return {
-          'name': name ?? deviceName,
-          'connected': true,
-        };
+ Future<Map<String, dynamic>> connectToDeviceByName(String deviceName) async {
+  try {
+    if (kIsWeb) {
+      // Ensure connectByName is defined in the JS context
+      if (js.context['connectByName'] == null) {
+        print('connectByName not found in JavaScript context');
+        throw PlatformException(
+          code: 'JS_ERROR',
+          message: 'connectByName function not found',
+        );
       }
-      throw PlatformException(
-        code: 'UNSUPPORTED_OPERATION',
-        message: 'Bluetooth connection is only supported on web',
-      );
-    } catch (e) {
-      throw PlatformException(
-        code: 'CONNECTION_FAILED',
-        message: e.toString(),
-      );
-    }
-  }
 
+      // Call the JS function and await the promise
+      final jsPromise = js.context.callMethod('connectByName', [deviceName]);
+
+      // Check if jsPromise is null
+      if (jsPromise == null) {
+        throw PlatformException(
+          code: 'JS_ERROR',
+          message: 'connectByName did not return a promise',
+        );
+      }
+
+      // Convert the JS promise to a Dart future
+      final result = await promiseToFuture(jsPromise);
+
+      // Extract the name property from the JS object
+      final name = js.JsObject.fromBrowserObject(result)['name'];
+
+      return {
+        'name': name ?? deviceName,
+        'connected': true,
+      };
+    }
+
+    throw PlatformException(
+      code: 'UNSUPPORTED_OPERATION',
+      message: 'Bluetooth connection is only supported on web',
+    );
+  } catch (e) {
+    throw PlatformException(
+      code: 'CONNECTION_FAILED',
+      message: e.toString(),
+    );
+  }
+}
   Future<Map<String, dynamic>> connectToDeviceByNameAndService(
       String deviceName, String serviceUuid) async {
     try {

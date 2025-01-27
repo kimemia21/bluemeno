@@ -138,3 +138,76 @@ window.BluetoothConnector = {
 //           await this.device.gatt.disconnect();
 //       }
 //   }
+
+
+
+const connectButton = document.getElementById('clickMe');
+const myList = document.getElementById("myList");
+const errorElement = document.getElementById('errorMessage'); 
+let uuid ="00001101-0000-1000-8000-00805F9B34FB";
+
+connectButton.addEventListener('click', async () => {
+    
+  
+    errorElement.textContent = '';
+
+    try {
+        let isAvailable = await navigator.bluetooth.getAvailability();
+        if (isAvailable) {
+            try {
+                // Request a Bluetooth device
+                const device = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: true,  // Accept all devices (you can specify more filters)
+                    optionalServices: ['generic_access']  // Add the required services
+                });
+        
+                // Connect to the device's GATT server
+                const server = await device.gatt.connect();
+                console.log('Connected to GATT server');
+        
+                // Get primary services from the GATT server
+                const services = await server.getPrimaryServices();
+                console.log('Available services:', services);
+        
+                // You can now interact with the services and characteristics
+                for (let service of services) {
+                    console.log('Service:', service.uuid);
+        
+                    // Get characteristics for each service
+                    const characteristics = await service.getCharacteristics();
+                    console.log('Characteristics:', characteristics);
+        
+                    // For example, you can read a characteristic
+                    for (let characteristic of characteristics) {
+                        const value = await characteristic.readValue();
+                        console.log(`Characteristic value: ${value}`);
+                    }
+                }
+        
+                console.log('Connected to device:', device.id);
+                console.log('Device information:', device);
+        
+            } catch (error) {
+                console.error('Bluetooth Connection Error:', error);
+                errorElement.textContent = 'Failed to connect to the device.';
+            }
+        } else {
+            errorElement.textContent = 'Bluetooth is not available on this device.';
+            console.log('Bluetooth is not available on this device.');
+        }
+        
+
+        
+
+
+
+    
+
+    } catch (error) {
+        console.error('Bluetooth Connection Error:', error.message);
+      
+   
+        errorElement.textContent = "Error connecting to Bluetooth device: " + error.message;
+
+    }
+});

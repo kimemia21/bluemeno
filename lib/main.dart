@@ -61,10 +61,12 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
 
-  void _incrementCounter() {
+  void _incrementCounter() async {
     BluetoothConnectorService service = BluetoothConnectorService();
     try {
-      service.connectToDeviceByName("MP300");
+      await js.context.callMethod('connectByName');
+      // await js.context.callMethod('showAlert');
+      print("called");
     } catch (e) {
       print("Blue Error $e");
     }
