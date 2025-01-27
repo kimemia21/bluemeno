@@ -1,5 +1,10 @@
+import 'package:bluemeno/BlueToothService.dart';
 import 'package:flutter/material.dart';
-import 'package:universal_ble/universal_ble.dart';
+import 'dart:js' as js;
+import 'dart:async';
+import 'dart:js_util' show promiseToFuture;
+
+import 'package:flutter_web_bluetooth/flutter_web_bluetooth.dart';
 
 class MyWidget extends StatefulWidget {
   const MyWidget({super.key});
@@ -9,104 +14,67 @@ class MyWidget extends StatefulWidget {
 }
 
 class _MyWidgetState extends State<MyWidget> {
- List<BleDevice> discoveredDevices = [];
-  bool isScanning = false;
+ final BluetoothConnectorService _bluetoothService = BluetoothConnectorService();
+  final String deviceName = 'MP300';
+   String? serviceUuid;
+  String _status = 'Not connected';
+  bool _isConnected = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _setupBluetoothListeners();
-  }
-
-  void _setupBluetoothListeners() {
-    UniversalBle.onAvailabilityChange = (state) {
-      switch (state) {
-        case AvailabilityState.poweredOn:
-          _startScan();
-          break;
-        case AvailabilityState.poweredOff:
-          _stopScan();
-          break;
-        default:
-          break;
+  Future<void> _connect() async {
+    try {
+      setState(() => _status = 'Connecting...');
+      
+      Map<String, dynamic> result;
+      if (serviceUuid != null) {
+        result = await _bluetoothService.connectToDeviceByNameAndService(
+        deviceName,
+        serviceUuid!,
+        );
+      } else {
+        result = await _bluetoothService.connectToDeviceByName(deviceName);
       }
-    };
-
-    UniversalBle.onScanResult = (device) {
+      
       setState(() {
-        // Prevent duplicate devices
-        if (!discoveredDevices.any((d) => d.name == device.name)) {
-          discoveredDevices.add(device);
-        }
+        _isConnected = result['connected'];
+        _status = _isConnected ? 'Connected to ${result['name']}' : 'Connection failed';
       });
-    };
-  }
-
-  void _startScan() {
-    if (!isScanning) {
-      setState(() => isScanning = true);
-      UniversalBle.startScan(
-        platformConfig: PlatformConfig(web: WebOptions()),
-        
-      );
+    } catch (e) {
+      setState(() => _status = 'Error: ${e.toString()}');
     }
   }
 
-  void _stopScan() {
-    UniversalBle.stopScan();
-    setState(() => isScanning = false);
-  }
+  Future<void> _sendTestData() async {
+    if (!_isConnected) {
+      setState(() => _status = 'Please connect first');
+      return;
+    }
 
-  void _connectToDevice(BleDevice device) {
-    UniversalBle.connect(device.deviceId);
-    // Implement device connection logic
-    print('Connecting to device: ${device.name}');
-  }
-
-  @override
-  void dispose() {
-    _stopScan();
-    super.dispose();
+    try {
+      setState(() => _status = 'Sending data...');
+      await _bluetoothService.sendData('Test data');
+      setState(() => _status = 'Data sent successfully');
+    } catch (e) {
+      setState(() => _status = 'Send error: ${e.toString()}');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('BLE Device Scanner'),
-        
-      ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-           Container(
-             child: IconButton(
-              icon: Icon(isScanning ? Icons.stadium_sharp : Icons.bluetooth_searching, color: Colors.blue,size: 100,),
-              onPressed: isScanning ? _stopScan : _startScan,
-                       ),
-           ),
-          isScanning
-              ? Center(child: CircularProgressIndicator())
-              : Container(
-                height: MediaQuery.of(context).size.height*0.7,
-                width: MediaQuery.of(context).size.width,
-                child: ListView.builder(
-                    itemCount: discoveredDevices.length,
-                    itemBuilder: (context, index) {
-                      final device = discoveredDevices[index];
-                      return ListTile(
-                        title: Text(device.name ?? 'Unknown Device'),
-                        subtitle: Text('RSSI: ${device.rssi}'),
-                        trailing: ElevatedButton(
-                          onPressed: () => _connectToDevice(device),
-                          child: Text('Connect'),
-                        ),
-                      );
-                    },
-                  ),
-              ),
-        ],
-      ),
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(_status),
+        const SizedBox(height: 20),
+        ElevatedButton(
+          onPressed: _connect,
+          child: Text('Connect to $deviceName'),
+        ),
+        const SizedBox(height: 10),
+        ElevatedButton(
+          onPressed: _isConnected ? _sendTestData : null,
+          child: const Text('Send Test Data'),
+        ),
+      ],
     );
   }
 }
