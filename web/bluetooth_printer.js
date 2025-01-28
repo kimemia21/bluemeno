@@ -16,7 +16,8 @@ async function connectByName() {
         console.log('Starting device discovery...');
         
         const device = await navigator.bluetooth.requestDevice({
-            acceptAllDevices: true,
+            filters: [{ name: 'BT5.2 Mouse' }],
+            // acceptAllDevices: true,
             optionalServices: ['generic_access']
         });
 
@@ -26,12 +27,6 @@ async function connectByName() {
             uuids: device.uuids
         });
 
-        // Check if it's the MP300
-        if (device.name === "MP300") {
-            console.log("MP300 found");
-        } else {
-            console.log("Device found but it's not MP300:", device.name);
-        }
 
         // Connect to GATT server
         console.log('Attempting to connect to GATT server...');
@@ -40,6 +35,9 @@ async function connectByName() {
 
         // Get the Generic Access service
         const service = await server.getPrimaryService('generic_access');
+        const characteristic = service.getCharacteristic('generic_access');
+        const value = await characteristic.readValue();
+        print('Generic Access Service Value:', value.getUint8(0));
         console.log('Accessed Generic Access service');
 
         return {
